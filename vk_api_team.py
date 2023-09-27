@@ -40,13 +40,10 @@ def get_bot_user_info(token: str) -> dict:
         print(f"Ошибка при получении информации о пользователе: {e}")
         return e
 
-def get_vk_profile_photos(user_id: int, vk_token: str, count=999) -> list:
-    """
-    Получает фотографии с профиля VK.
-    Возвращает список фотографий или None в случае ошибки.
-    """
+def get_vk_top_liked_photo_urls(user_id: int, vk_token: str, count=4):
+
     response = requests.get(
-        f"https://api.vk.com/method/photos.get?owner_id={user_id}&album_id=profile&count={count}&access_token={vk_token}&v=5.131"
+        f"https://api.vk.com/method/photos.get?owner_id={user_id}&album_id=profile&count={count}&access_token={vk_token}&v=5.131&sort=likes&photo_sizes=1"
     )
     data = response.json()
 
@@ -56,7 +53,17 @@ def get_vk_profile_photos(user_id: int, vk_token: str, count=999) -> list:
         return None
 
     photos = data["response"]["items"]
-    return photos
+    
+    photo_urls = []
+    for photo in photos:
+        sizes = photo.get("sizes", [])
+
+        for size in sizes:
+            if size["type"] in ("w", "z"):
+                photo_urls.append(size["url"])
+                break
+
+    return photo_urls
 
 def search_users(min_age: int, max_age: int, city: int, sex: int) -> str:
     user_list = []
@@ -118,3 +125,24 @@ def random_users(min_age: int = random.randint(18, 30), max_age: int = random.ra
 
 def black_list(id_user: int):
     plack_list.append(id_user)
+
+def like_external_photo(photo_url, vk_token):
+    api_url = 'https://api.vk.com/method/likes.add'
+
+    params = {
+        'type': 'photo',
+        'item_id': photo_url,
+        'access_token': vk_token,
+        'v': '5.131'
+    }
+
+    try:
+        response = requests.post(api_url, params=params)
+        data = response.json()
+
+        if 'response' in data:
+            print("Лайк успешно поставлен!")
+        else:
+            print(f"Ошибка при постановке лайка: {data.get('error', {}).get('error_msg', 'Неизвестная ошибка')}")
+    except Exception as e:
+        print(f"Произошла ошибка: {e}")
